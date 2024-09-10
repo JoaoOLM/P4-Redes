@@ -73,25 +73,33 @@ class Enlace:
         # pedaço de outro, ou vários quadros de uma vez só.
 
         for byte in dados:
-            if self.escape:
-                match byte:
-                    case 0xDC:
-                        self.buffer_quadro.append(0xC0)
-                    case 0xDD:
-                        self.buffer_quadro.append(0xDB)
-                    case _:
-                        self.buffer_quadro.clear()
+            try:
+                if self.escape:
+                    match byte:
+                        case 0xDC:
+                            self.buffer_quadro.append(0xC0)
+                        case 0xDD:
+                            self.buffer_quadro.append(0xDB)
+                        case _:
+                            self.buffer_quadro.clear()
+                    self.escape = False
+                else:
+                    match byte:
+                        case 0xC0:
+                            if self.buffer_quadro:
+                                datagrama = bytes(self.buffer_quadro)
+                                self.callback(datagrama)
+                            self.buffer_quadro.clear()
+                        case 0xDB:
+                            self.escape = True
+                        case _:
+                            self.buffer_quadro.append(byte)
+            except:
+                import traceback
+                traceback.print_exc()
                 self.escape = False
-            else:
-                match byte:
-                    case 0xC0:
-                        if self.buffer_quadro:
-                            datagrama = bytes(self.buffer_quadro)
-                            self.callback(datagrama)
-                        self.buffer_quadro.clear()
-                    case 0xDB:
-                        self.escape = True
-                    case _:
-                        self.buffer_quadro.append(byte)
+                self.buffer_quadro.clear()
+            finally:
+                self.linha_serial.fila = self.linha_serial.fila.replace(b'\xC0\xC0', b'\xC0')
 
         self.linha_serial.fila = self.linha_serial.fila.replace(b'\xC0\xC0', b'\xC0')
