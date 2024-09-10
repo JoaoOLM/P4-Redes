@@ -43,6 +43,8 @@ class Enlace:
     def __init__(self, linha_serial):
         self.linha_serial = linha_serial
         self.linha_serial.registrar_recebedor(self.__raw_recv)
+        self.escape = False
+        self.buffer_quadro = bytearray()
 
     def registrar_recebedor(self, callback):
         self.callback = callback
@@ -70,15 +72,26 @@ class Enlace:
         # apenas pedaços de um quadro, ou um pedaço de quadro seguido de um
         # pedaço de outro, ou vários quadros de uma vez só.
 
-        initial = dados.find(b'\xC0')
-        end = dados.rfind(b'\xC0')
+        for byte in dados:
+            if self.escape:
+                match byte:
+                    case 0xDC:
+                        self.buffer_quadro.append(0xC0)
+                    case 0xDD:
+                        self.buffer_quadro.append(0xDB)
+                    case _:
+                        self.buffer_quadro.clear()
+                self.escape = False
+            else:
+                match byte:
+                    case 0xC0:
+                        if self.buffer_quadro:
+                            datagrama = bytes(self.buffer_quadro)
+                            self.callback(datagrama)
+                        self.buffer_quadro.clear()
+                    case 0xDB:
+                        self.escape = True
+                    case _:
+                        self.buffer_quadro.append(byte)
 
-        if initial == -1 or end == -1:
-            return
-
-        datagrama_encapsulado = dados[initial + 1:end]
-
-        datagrama = datagrama_encapsulado.replace(b'\xDB\xDC', b'\xC0')
-        datagrama = datagrama.replace(b'\xDB\xDD', b'\xDB')
-
-        self.callback(datagrama)
+        self.linha_serial.fila = self.linha_serial.fila.replace(b'\xC0\xC0', b'\xC0')
