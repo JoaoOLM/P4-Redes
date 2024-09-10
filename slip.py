@@ -69,19 +69,16 @@ class Enlace:
         # vir quebrado de várias formas diferentes - por exemplo, podem vir
         # apenas pedaços de um quadro, ou um pedaço de quadro seguido de um
         # pedaço de outro, ou vários quadros de uma vez só.
-        inicio = dados.find(b'\xC0')
-        fim = dados.rfind(b'\xC0')
 
-        # Se o início ou o fim não forem encontrados descarta os dados
-        if inicio == -1 or fim == -1:
+        initial = dados.find(b'\xC0')
+        end = dados.rfind(b'\xC0')
+
+        if initial == -1 or end == -1:
             return
 
-        # Extrai o datagrama encapsulado
-        datagrama_encapsulado = dados[inicio + 1:fim]
+        datagrama_encapsulado = dados[initial + 1:end]
 
-        # Reverte as substituições dos bytes especiais
         datagrama = datagrama_encapsulado.replace(b'\xDB\xDC', b'\xC0')
         datagrama = datagrama.replace(b'\xDB\xDD', b'\xDB')
 
-        # Repassa o datagrama desencapsulado para a camada superior
         self.callback(datagrama)
