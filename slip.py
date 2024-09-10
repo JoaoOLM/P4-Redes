@@ -52,7 +52,11 @@ class Enlace:
         # serial, fazendo corretamente a delimitação de quadros e o escape de
         # sequências especiais, de acordo com o protocolo CamadaEnlace (RFC 1055).
         # Substitui os bytes especiais no datagrama
-        
+
+        # Substitui os bytes especiais no datagrama
+        datagrama = datagrama.replace(b'\xDB', b'\xDB\xDD')
+        datagrama = datagrama.replace(b'\xC0', b'\xDB\xDC')
+
         datagrama = b'\xC0' + datagrama + b'\xC0'
 
         self.linha_serial.enviar(datagrama)
@@ -65,6 +69,19 @@ class Enlace:
         # vir quebrado de várias formas diferentes - por exemplo, podem vir
         # apenas pedaços de um quadro, ou um pedaço de quadro seguido de um
         # pedaço de outro, ou vários quadros de uma vez só.
-        pass
+        inicio = dados.find(b'\xC0')
+        fim = dados.rfind(b'\xC0')
 
-# Commit vazio 
+        # Se o início ou o fim não forem encontrados descarta os dados
+        if inicio == -1 or fim == -1:
+            return
+
+        # Extrai o datagrama encapsulado
+        datagrama_encapsulado = dados[inicio + 1:fim]
+
+        # Reverte as substituições dos bytes especiais
+        datagrama = datagrama_encapsulado.replace(b'\xDB\xDC', b'\xC0')
+        datagrama = datagrama.replace(b'\xDB\xDD', b'\xDB')
+
+        # Repassa o datagrama desencapsulado para a camada superior
+        self.callback(datagrama)
